@@ -1,0 +1,77 @@
+# Dependencies
+# No trailing slash: `node_modules/` matches a directory only, so a SYMLINK named
+# node_modules (e.g. pointing at another repo) would still be committable.
+node_modules
+
+# Filled-in environment profiles hold credentials: only the template is committable.
+# (A file that is ALREADY tracked, e.g. dev.env, stays tracked until `git rm --cached` — this rule only keeps new ones out.)
+environments/*.env
+!environments/example.env
+
+# Runtime selection written by global-setup.js
+.selected-env.json
+.selected-country.json
+
+# Playwright
+test-results/
+playwright-report/
+.auth/
+.*_results.json
+
+# Test output: screenshots and the aggregate reports/ folder are ignored.
+# A suite's own suites/<Feature>/test_report.html IS committed — it is part of the
+# per-suite folder contract (see suites/README.md), which is why the HTML rule at
+# the bottom of this file is scoped to the repo root.
+screenshots/
+reports/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# REPORT
+/REPORT
+# Ad-hoc HTML dumps at the repo root only — NOT the per-suite reports.
+/*.html
+
+# Client deliverables (FSD specs, TC workbooks, data loaders, review trackers) are
+# kept locally in Document/ but never committed — only its README is. See Document/README.md.
+/Document/*
+!/Document/README.md
+# same rule for the lower-case folder some deliveries arrive in
+/documents/
+
+# Personal Claude Code overrides (shared settings live in .claude/settings.json)
+.claude/settings.local.json
+
+# Per-run lifecycle state of suites that create their own records, and an audit of every write a suite sent
+suites/**/mutation-log.jsonl
+suites/*/.state/
+
+
+
+# Generated upload fixtures (e.g. a large test PDF built at run time)
+suites/*/.tmp/
+
+# Generated upload files rebuilt every run (e.g. a file whose date is the run day)
+suites/**/.upload/
+
+# Per-run merge state of the reporter (REPORT_MERGE=1) — a run artefact, not source.
+suites/*/.report-rows.json
+# Kept runs (report.json "keepRuns") and the merged report built from them (scripts/merge-runs.js): screenshots of a live dashboard.
+suites/*/.runs/
+suites/*/report-all/
+
+
+# Output of scripts/probe-*.js: one environment's live data (records, master data), not source.
+suites/*/probe-*.json

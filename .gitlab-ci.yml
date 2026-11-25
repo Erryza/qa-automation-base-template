@@ -1,0 +1,127 @@
+# Playwright UI automation pipeline.
+#
+# WHY THIS FILE EXISTS
+# --------------------
+# Until regressions are found by a pipeline instead of by someone remembering to
+# run the suite, an automation project delivers about half its value. This is the
+# smallest thing that changes that: lint on every push, the full suite nightly,
+# and an on-demand run when someone wants one.
+#
+# It only works because each test case is a real Playwright `test()` now — the
+# previous shape exited 0 no matter how many test cases failed, so a pipeline
+# built on it would have been permanently, misleadingly green.
+#
+# SETUP (once, in Settings → CI/CD → Variables — mark every credential Masked):
+#   AUTOMATION_URL        login URL of the target environment
+#   AUTOMATION_USERNAME   } the run account, or use AUTOMATION_ACCOUNTS for a pool
+#   AUTOMATION_PASSWORD   }   "user1:pass1,user2:pass2" — see utils/accounts.js
+#   AUTOMATION_OTP        optional; a static code or a TOTP base32 secret
+#   ACCOUNTS_PREFIX       REQUIRED with AUTOMATION_ACCOUNTS: the suite's own env-key
+#                         prefix, so the pool lands under "<prefix>_accounts" —
+#                         the exact key accountForWorker(profile, '<prefix>') reads.
+#                         A suite reading "xx_accounts" needs ACCOUNTS_PREFIX=xx;
+#                         get it wrong and every worker silently shares one login.
+# Then Settings → CI/CD → Schedules: a nightly schedule with TARGET_ENV=sit.
+
+stages: [lint, test]
+
+# Pinned to the installed Playwright version. Bump BOTH together — a mismatched
+# image is the usual cause of "Executable doesn't exist" in CI.
+image: mcr.microsoft.com/playwright:v1.60.0-noble
+
+variables:
+  # Never launch a browser window on a runner, and switch playwright.config.js to
+  # its CI profile (retries: 2, workers: 2, forbidOnly).
+  HEADLESS: "1"
+  CI: "1"
+  TARGET_ENV: "sit"
+  npm_config_cache: "$CI_PROJECT_DIR/.npm"
+
+cache:
+  key:
+    files: [package-lock.json]
+  paths: [.npm/]
+
+.node_setup: &node_setup
+  - npm ci --prefer-offline --no-audit --fund=false
+
+# ── lint ─────────────────────────────────────────────────────────────────────
+# No browsers, no credentials, no environment — so it runs on every push in
+# seconds and catches the conventions that make suites rot (fixed sleeps,
+# hardcoded URLs, a stray test.only, an untraceable test case).
+lint:
+  stage: lint
+  image: node:22-alpine
+  script:
+    - node scripts/check-conventions.js
+    - find . -name '*.js' -not -path './node_modules/*' -print0 | xargs -0 -n1 node --check
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+
+# ── shared test job ──────────────────────────────────────────────────────────
+.test_template: &test_template
+  stage: test
+  before_script:
+    - *node_setup
+    # environments/*.env is git-ignored on purpose (that is how credentials stopped
+    # being committed). CI materialises it from masked variables at run time, so the
+    # secrets live in GitLab, never in the repository.
+    - |
+      set -u
+      : "${AUTOMATION_URL:?set AUTOMATION_URL in CI/CD variables}"
+      mkdir -p environments
+      {
+        echo "url=${AUTOMATION_URL}"
+        echo "username=${AUTOMATION_USERNAME:-}"
+        echo "password=${AUTOMATION_PASSWORD:-}"
+        echo "otp=${AUTOMATION_OTP:-}"
+        [ -n "${AUTOMATION_ACCOUNTS:-}" ] && echo "${ACCOUNTS_PREFIX:?set ACCOUNTS_PREFIX to the env-key prefix of the suite that reads this pool}_accounts=${AUTOMATION_ACCOUNTS}"
+      } > "environments/${TARGET_ENV}.env"
+      echo "wrote environments/${TARGET_ENV}.env ($(grep -c . "environments/${TARGET_ENV}.env") keys, values hidden)"
+  script:
+    # --pass-with-no-tests so a repo with no suites yet is a pass, not a failure.
+    # Everything else is a genuine red: the exit code means something again.
+    - ENV="${TARGET_ENV}" npx playwright test --pass-with-no-tests
+  after_script:
+    # Never leave credentials on a runner that may be reused.
+    - rm -f environments/*.env
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      # The client-facing per-suite report, its evidence, Playwright's own report,
+      # and test-results/ — which is where the traces from retried tests land.
+      # `npx playwright show-trace <trace.zip>` replays the whole failing run.
+      - suites/**/test_report.html
+      - suites/**/screenshots/
+      - reports/
+      - test-results/
+    reports:
+      junit: reports/junit.xml
+  # Artifacts do not survive into the next pipeline, so history.jsonl only ever
+  # holds this run. For a real trend, push each run's line to a store you keep
+  # (an S3 object, a small table, or a long-lived reports branch).
+
+# ── nightly ──────────────────────────────────────────────────────────────────
+nightly:
+  <<: *test_template
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+
+# ── on demand ────────────────────────────────────────────────────────────────
+# Set TARGET_ENV (and optionally GREP) when starting the job:
+#   GREP="TC-004"  runs just that test case, on every variant.
+manual:
+  <<: *test_template
+  script:
+    - |
+      if [ -n "${GREP:-}" ]; then
+        ENV="${TARGET_ENV}" npx playwright test --pass-with-no-tests -g "${GREP}"
+      else
+        ENV="${TARGET_ENV}" npx playwright test --pass-with-no-tests
+      fi
+  rules:
+    - if: $CI_PIPELINE_SOURCE != "schedule"
+      when: manual
+      allow_failure: true

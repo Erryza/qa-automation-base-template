@@ -1,0 +1,19 @@
+{
+  "skill_name": "generate-live-test-suite",
+  "evals": [
+    {
+      "id": 0,
+      "name": "employee-nomination-plan",
+      "prompt": "You are helping automate tests for the dashboard project. The Playwright repo is at <repo-root> and the frontend source is at <frontend-source-repo>. I want to turn the '<Feature>' sheet of <docs>/Test Cases.xlsx into a standalone Playwright test.js in this repo. Give me a concrete plan AND a test.js skeleton: how you'd read the sheet, classify each TC as Automation vs SKIP (with reasons), mine the frontend source for the real selectors, handle login for the right role/portal, and structure the file (helpers, record/snap, SKIP list, report). IMPORTANT: do NOT actually log into dev, launch Playwright/chromium, or create any data \u2014 I only want the written plan + skeleton for me to review first. Write your plan + skeleton to a markdown file in the output directory.",
+      "expected_output": "A written plan + test.js skeleton that: reads the Excel sheet, produces an Automation-vs-SKIP classification with reasons, mines the frontend source source for real selectors (inventory), picks the correct login role/portal (the feature may live on a tenant sub-portal, not the admin portal), and structures the file with record/snap helpers and a SKIP list recorded to the report. No live login or data creation.",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "merchant-create-gotcha",
+      "prompt": "I'm writing a Playwright suite (in this repo) for a dashboard 'Register New <Entity>' form that has create-success and duplicate-rejection test cases. When I fill the whole form with valid data and click Create, the API returns a 400 and the test fails, even though every visible field looks filled. I also have two accounts with different roles and need a menu-visibility test (one role sees the target module menu, the other doesn't). Explain what's most likely wrong with the create, how to structure the create-success + duplicate-rejection TCs (including evidence screenshots) and the multi-role menu test, and give me the key helper functions. Don't run anything live \u2014 just the written explanation + code. Save it to a markdown file in the output directory.",
+      "expected_output": "Explanation that the 400 is most likely a missing/unpopulated field (e.g. an unuploaded logo image that the FE treats as optional but the BE requires) \u2014 upload it and wait for the temporary-image upload. Structure: assert create success by the modal closing; capture the actual duplicate alert (don't assume a string); TWO full-page evidence screenshots (tall viewport for scrolling modals); a multi-role menu test using separate contexts + record with a shots array; verify login actually established the session. No live run.",
+      "files": []
+    }
+  ]
+}

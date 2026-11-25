@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx playwright *)",
+      "Bash(node *)",
+      "Bash(node --check *)",
+      "Bash(npm run test*)",
+      "Bash(python3 *)"
+    ]
+  }
+}

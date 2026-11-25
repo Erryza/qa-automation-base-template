@@ -1,0 +1,36 @@
+{
+  "name": "qa-automation-base-template",
+  "version": "1.0.0",
+  "description": "Reusable Playwright base for web-dashboard UI automation (standalone test.js suites, Excel-driven test cases, HTML/PDF reporting)",
+  "scripts": {
+    "test": "playwright test",
+    "lint": "node scripts/check-conventions.js",
+    "test:ci": "CI=1 HEADLESS=1 playwright test",
+    "test:dev": "ENV=dev playwright test",
+    "test:sit": "ENV=sit playwright test",
+    "test:uat": "ENV=uat playwright test",
+    "test:headed": "playwright test --headed",
+    "test:sit:headed": "ENV=sit playwright test --headed",
+    "test:uat:headed": "ENV=uat playwright test --headed",
+    "test:ui": "ENV=sit playwright test --ui",
+    "test:sit:ui": "ENV=sit playwright test --ui",
+    "test:uat:ui": "ENV=uat playwright test --ui",
+    "codegen": "playwright codegen",
+    "report": "playwright show-report reports/playwright-html",
+    "publish:report": "bash scripts/publish-report.sh",
+    "report:pdf": "node scripts/report-to-pdf.js",
+    "report:rebuild": "node scripts/rebuild-report-from-results.js",
+    "suite": "node scripts/run-suite.js",
+    "preflight": "node scripts/preflight.js",
+    "login": "node scripts/manual-login.js",
+    "login:auto": "node scripts/auto-login.js",
+    "check:session": "node scripts/check-session.js"
+  },
+  "dependencies": {
+    "@playwright/test": "1.60.0",
+    "exceljs": "^4.4.0",
+    "jszip": "^3.10.1",
+    "otplib": "^12.0.1",
+    "xlsx": "0.18.5"
+  }
+}
